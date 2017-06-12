@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 
+use File::Basename qw(basename dirname);
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
@@ -20,7 +21,7 @@ fatal("no such site: $site") if !-e $conf;
 $ENV{'KOHA_CONF'} = $conf;
 
 my $cmd = shift;
-my $pl = sprintf "%s/kcl-%s.pl", $FindBin::Bin, $cmd;
+my $pl = sprintf "%s/libexec/kcl-%s.pl", dirname($FindBin::Bin), $cmd;
 usage() if !-x $pl;
 
 my @pl = $opt{'d'} ? ($^X, '-d', $pl) : ($pl);
