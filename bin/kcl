@@ -1,0 +1,39 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Getopt::Std;
+
+my %opt;
+getopts(':d', \%opt);
+
+usage() if @ARGV < 2;
+
+my $site = shift;
+my $conf = "/etc/koha/sites/$site/koha-conf.xml";
+
+fatal("no such site: $site") if !-e $conf;
+$ENV{'KOHA_CONF'} = $conf;
+
+my $cmd = shift;
+my $pl = sprintf "%s/kcl-%s.pl", $FindBin::Bin, $cmd;
+usage() if !-x $pl;
+
+my @pl = $opt{'d'} ? ($^X, '-d', $pl) : ($pl);
+if (exec(@pl, @ARGV) != 0) {
+    fatal("exec: $!");
+}
+
+sub usage {
+    print STDERR "usage: kcl SITE COMMAND [ARG...]\n";
+    exit 1;
+}
+
+sub fatal {
+    print STDERR "kcl: @_\n";
+    exit 2;
+}
