@@ -1,5 +1,12 @@
 #!/usr/bin/perl
 
+#@ begin usage
+#@ descrip      List MARC record batches
+#@ opt [-a]     Include imported batches
+#@ opt [-l]     Long output
+#@ opt [-r]     List most recent first
+#@ end usage
+
 # MARC record batches for Koha
 
 use strict;

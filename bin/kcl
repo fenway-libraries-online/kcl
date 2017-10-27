@@ -15,22 +15,78 @@ getopts(':d', \%opt);
 usage() if @ARGV < 2;
 
 my $site = shift;
-my $conf = "/etc/koha/sites/$site/koha-conf.xml";
-
-fatal("no such site: $site") if !-e $conf;
-$ENV{'KOHA_CONF'} = $conf;
+if ($site eq 'all') {
+    $ENV{'KOHA_SITE'} = '*';
+}
+else {
+    my $conf = "/etc/koha/sites/$site/koha-conf.xml";
+    fatal("no such site: $site") if !-e $conf;
+    $ENV{'KOHA_SITE'} = $site;
+    $ENV{'KOHA_CONF'} = $conf;
+}
 
 my $cmd = shift;
-my $pl = sprintf "%s/libexec/kcl-%s.pl", dirname($FindBin::Bin), $cmd;
+my $pl = sprintf "%s/libexec/kcl/%s.pl", dirname($FindBin::Bin), $cmd;
 usage() if !-x $pl;
 
 my @pl = $opt{'d'} ? ($^X, '-d', $pl) : ($pl);
-if (exec(@pl, @ARGV) != 0) {
-    fatal("exec: $!");
+my $status = system(@pl, @ARGV) >> 8;
+if ($status == 1) {
+    usage($cmd);
 }
+exit $status;
 
 sub usage {
-    print STDERR "usage: kcl SITE COMMAND [ARG...]\n";
+    my ($cmd) = @_;
+    my @scripts = @_ ? ($pl) : sort glob sprintf "%s/libexec/kcl/*.pl", dirname($FindBin::Bin);
+    my @commands;
+    foreach my $script (@scripts) {
+        next if !-x $script;
+        (my $name = basename($script)) =~ s/\.pl$//;
+        open my $fh, '<', $script or next;
+        my ($descrip, @opt, @arg);
+        while (<$fh>) {
+            last if /^#@\s*end\s+usage\s*$/;
+            next if /^#@\s*begin\s+usage\s*$/;
+            next if !s/^#@\s*//;
+            $descrip = norm($1), next if /^descrip(?:tion)?\s+(.+)/;
+            push(@opt, norm($1)), next if /^opt\s+(.+)/;
+            push(@arg, norm($1)), next if /^arg\s+(.+)/;
+        }
+        my $argstr = join(' ', map { brief($_) } @opt, @arg);
+        $argstr = shorten($argstr, 60) if length($argstr) > 60;
+        push @commands, {
+            'command' => $name,
+            'description' => $descrip,
+            'arguments' => [ @opt, @arg ],
+            'argstr' => $argstr,
+        };
+    }
+    if (@scripts == 1) {
+        my $command = $commands[0];
+        my @args = @{ $command->{'arguments'} };
+        my $argstr = $command->{'argstr'};
+        printf STDERR "usage: kcl SITE %s %s\n", $cmd, $argstr;
+        print STDERR "options:\n";
+        foreach my $arg (@args) {
+            1;
+        }
+    }
+    else {
+        print STDERR "usage: kcl SITE COMMAND [ARG...]\n";
+        print STDERR "commands:\n";
+        my ($wname, $wargs) = (0, 0);
+        foreach (@commands) {
+            my ($name, $descrip, $argstr) = @$_{qw(command description argstr)};
+            my ($lname, $largs) = map length, $name, $argstr;
+            $wname = $lname if $lname > $wname;
+            $wargs = $largs if $largs > $wargs;
+        }
+        foreach (@commands) {
+            my ($name, $descrip, $argstr) = @$_{qw(command description argstr)};
+            printf STDERR "  %-${wname}s %-${wargs}s  %s\n", $name, $argstr, $descrip;
+        }
+    }
     exit 1;
 }
 
@@ -38,3 +94,32 @@ sub fatal {
     print STDERR "kcl: @_\n";
     exit 2;
 }
+
+sub norm {
+    local $_ = shift;
+    s/\s+/ /g;
+    s/^\s+|\s+$//g;
+    return $_;
+}
+
+sub brief {
+    local $_ = shift;
+    return $_ if /^\[[^\]]+\]$/;
+    return $_ if s/\]\s+.*/]/;
+    return (split /\s+/)[0];
+}
+
+sub shorten {
+    local $_ = shift;
+    my $maxlen = shift;
+    my @parts = ( /(\[[^\]]+\]|\S+)/g );
+    my $str = '';
+    while (length($str) + 1 + length($parts[0]) < $maxlen - 3) {
+        $str .= ' ';
+        $str .= shift @parts;
+    }
+    $str =~ s/^ //;
+    $str .= ' ...';
+    return $str;
+}
+

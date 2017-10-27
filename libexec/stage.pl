@@ -1,12 +1,28 @@
 #!/usr/bin/perl
 
+#@ begin usage
+#@ descrip Stage MARC records for loading
+#@ opt [-m COMMENT]             Batch comment or description
+#@ opt [-i]                     Parse item record info (default: don't)
+#@ opt [-d MATCHER]             Use MATCHER for matching
+#@ opt [-n]                     Dry run
+#@ opt [-t RECTYPE]             Record type (default: biblio)
+#@ opt [-F marc|marcxml]        Record format (default: MARC)
+#@ opt [-e ENCODING]            Record encoding (default: UTF-8)
+#@ opt [-O add|replace|ignore]  Overlay action
+#@ opt [-N add|ignore]          No-match action
+#@ opt [-I add|ignore]          Item action
+#@ arg FILE                     File of records to stage
+#@ end usage
+
 # MARC record batch loader for Koha
+# paul@flo.org
 
 use strict;
 use warnings;
 
 use POSIX qw(strftime);
-use MARC::File::USMARC;
+# use MARC::File::USMARC;
 use Getopt::Std qw(getopts);
 
 # Koha modules
@@ -23,14 +39,14 @@ my %opt = qw(
     N create_new
     I always_add
 );
-getopts(':nF:t:e:m:id:ONI', \%opt);
+getopts(':nF:t:e:m:id:O:N:I:', \%opt);
 
-usage() if @ARGV != 1;
+exit 1 if @ARGV != 1;
 
 my $file = shift @ARGV;
 
 my $dry_run = $opt{'n'};
-my $format = $opt{'F'} ||= filename2format($file) || fatal("unknown record format: $file");
+my $format = uc ($opt{'F'} ||= filename2format($file) || fatal("unknown record format: $file"));
 my $record_type = $opt{'t'};
 my $encoding = $opt{'e'};
 my $comments = $opt{'m'} || strftime('record load %Y-%m-%d %H:%M:%S', localtime);
@@ -44,17 +60,17 @@ my $item_action = $opt{'I'};
 for ($overlay_action) {
     tr/-A-Z/_a-z/;
     s/^add$/create_new/;
-    usage() if !/^(replace|create_new|ignore)$/;
+    exit 1 if !/^(replace|create_new|ignore)$/;
 }
 for ($nomatch_action) {
     tr/-A-Z/_a-z/;
     s/^add$/create_new/;
-    usage() if !/^(create_new|ignore)$/;
+    exit 1 if !/^(create_new|ignore)$/;
 }
 for ($item_action) {
     tr/-A-Z/_a-z/;
     s/^add$/always_add/;
-    usage() if !/^(always_add|ignore)$/;
+    exit 1 if !/^(always_add|ignore)$/;
 }
 
 my $dbh = C4::Context->dbh;
@@ -91,7 +107,7 @@ print STDERR "done\n";
 # Perform matching
 my $num_with_matches = 0;
 if (defined $matcher_code) {
-    my ($matcher_id) = grep { $_->{'code'} eq $matcher_code } C4::Matcher::GetMatcherList();
+    my ($matcher_id) = map { $_->{'code'} eq $matcher_code ? ($_->{'matcher_id'}) : () } C4::Matcher::GetMatcherList();
     fatal("no such matcher: $matcher_code") if !defined $matcher_id;
     my $matcher = C4::Matcher->fetch($matcher_id);
     fatal("no such matcher: $matcher_code") if !defined $matcher;
