@@ -1,1 +1,1 @@
-PREFIX = /usr/local
+PREFIX = /site

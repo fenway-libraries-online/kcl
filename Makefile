@@ -3,8 +3,8 @@ include config.mk
 build: bin/kcl
 
 install:
-	install -d $(PREFIX)/bin $(PREFIX)/libexec
+	install -d $(PREFIX)/bin $(PREFIX)/libexec $(PREFIX)/libexec/kcl
 	install bin/kcl $(PREFIX)/bin/
-	install libexec/kcl-* $(PREFIX)/libexec/
+	install libexec/*.pl $(PREFIX)/libexec/kcl
 
 .PHONY: build install
