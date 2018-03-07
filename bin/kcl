@@ -18,6 +18,12 @@ my $site = shift;
 if ($site eq 'all') {
     $ENV{'KOHA_SITE'} = '*';
 }
+elsif ($site eq '.') {
+    $site = $ENV{'KOHA_SITE'} or fatal("no site specified");
+    my $conf = "/etc/koha/sites/$site/koha-conf.xml";
+    fatal("no such site: $site") if !-e $conf;
+    $ENV{'KOHA_CONF'} = $conf;
+}
 else {
     my $conf = "/etc/koha/sites/$site/koha-conf.xml";
     fatal("no such site: $site") if !-e $conf;
