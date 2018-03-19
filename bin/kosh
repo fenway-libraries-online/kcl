@@ -16,9 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use FindBin;
 use Modern::Perl;
 use Getopt::Long
     qw(:config posix_default gnu_compat require_order bundling no_ignore_case);
+
+use lib "$FindBin::Bin/../lib", "$FindBin::Bin/../lib/perl";
 
 my %opts;
 my $res = GetOptions(
@@ -46,19 +49,20 @@ if ( !-e "/etc/koha/sites/$instance" ) {
 @ARGV = ($ENV{SHELL} || '/bin/sh') if !@ARGV;
 
 # Now we're set up, build the 'su' command
-my @su_args;
-push @su_args, '/usr/bin/sudo';
-push @su_args, '--preserve-env' if $opts{'preserve-environment'};
-push @su_args, '--login' if $opts{login};
-push @su_args, "-u", "$instance-koha";
-push @su_args,
+my @cmd;
+push @cmd, '/usr/bin/sudo';
+push @cmd, '--preserve-env' if $opts{'preserve-environment'};
+push @cmd, '--login' if $opts{login};
+push @cmd, "-u", "$instance-koha";
+push @cmd,
     "env",
+    "KOHA_SITE=$instance",
     "KOHA_CONF=/etc/koha/sites/$instance/koha-conf.xml",
-    "PERL5LIB=/usr/share/koha/lib",
-    @ARGV;
+    "PERL5LIB=/usr/share/koha/lib";
+push @cmd, @ARGV;
 
-print STDERR "Command: @su_args\n" if $opts{verbose};
-system(@su_args);
+print STDERR "Command: @cmd\n" if $opts{verbose};
+system(@cmd);
 if ( $? == -1 ) {
     print STDERR "failed to execute: $!\n";
 }
