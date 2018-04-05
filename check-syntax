@@ -1,0 +1,30 @@
+#!/bin/sh
+
+: ${KOHA_SITE:=$(koha-list --enabled | head -n1)}
+
+err=0
+
+main() {
+    check perl -c bin/kosh
+    check perl -c bin/kcl
+    for f in libexec/*; do
+        check bin/kosh "${KOHA_SITE}" perl -c $f
+    done
+    exit $err
+}
+
+check() {
+    $@ > /tmp/check-syntax.$$.tmp 2>&1
+    ! fgrep -iq err < /tmp/check-syntax.$$.tmp
+    local e=$?
+    rm -f /tmp/check-syntax.$$.tmp
+    while [ $# -gt 1 ]; do shift; done
+    if [ $e -eq 0 ]; then
+        echo " ok  $1" >&2
+    else
+        err=$?
+        echo "FAIL $1" >&2
+    fi
+}
+
+main "$@"
