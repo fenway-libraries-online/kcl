@@ -59,6 +59,7 @@ push @cmd,
     "KOHA_SITE=$instance",
     "KOHA_CONF=/etc/koha/sites/$instance/koha-conf.xml",
     "PERL5LIB=/usr/share/koha/lib";
+push @cmd, "PATH=$ENV{PATH}" if $opts{'preserve-environment'};
 push @cmd, @ARGV;
 
 print STDERR "Command: @cmd\n" if $opts{verbose};
